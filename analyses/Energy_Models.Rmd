@@ -1,0 +1,246 @@
+---
+title: "NCYC Energy models"
+author: "Riley M. Anderson"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+graphics: yes
+output:
+  github_document:
+    toc: yes
+    toc_depth: 5
+    pandoc_args: --webtex
+  html_document:
+    keep_md: yes
+    theme: readable
+    mathjax: default
+  html_notebook:
+    code_folding: hide
+    theme: readable
+    mathjax: default
+  pdf_document:
+    toc: yes
+header-includes:
+  \usepackage{float}
+  \floatplacement{figure}{H}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+# Set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+## Overview
+
+This markdown shows the results from 5 BEopt (Building Energy Optimization) models. BEopt takes inputs describing a building, everything from azimuth to water heater set point and simulates seasonal weather patterns for the nearest locale (Hartford, CT) to determine energy usage.
+
+Five models were built to describe:
+
+1) the current clubhouse structure as is (March 2026)
+
+2) insulate south wall with R15 mineral wool and replace the windows with modern, double pane, insulated, low-e windows
+
+3) condition 2 plus an awning on the south wall that completely shades the windows in the summer months
+
+4) condition 3 plus air sealing the ceiling with drywall and insulating the attic to R60 (cellulose or batts)
+
+5) condition 4 plus replacing every light with LEDs
+
+**Assumptions made**
+
+* Framing is 2x4, 16" o.c. with marginal insulation, ~ R7 (old fiberglass batts)
+* Current air leakage is substantial 10-15 ACH50
+* Most air leakage occurs at the ceiling-attic interface
+* Attic insulation is sub optimal (both in amount and installation) ~ R20
+* Current windows are a mixture of single and double glazed, uninsulated, leaky ~ U value: > 0.6
+* Airtight ceiling drywall brings total air leakage down to 5 ACH50
+* All current lighting is not LED
+* Plug loads are 25% of normal household usage
+* Cooling set point is 76 F with conditioning between June 1 and Sep 1
+* BEopt doesn't directly model seasonally-occupied buildings so inputs schedules were adjusted to approximate seasonal usage from May 1 to Nov 15
+* Water heater and plumbing components were excluded from these models to simplify energy schedules and limit the results to electric consumers only (our water heater is propane)
+
+
+### Summary of Results
+* BEopt cannot tell us how much cooler the clubhouse will be with these upgrades but it can tell us the *cooling loads* across each condition. We'll use these loads as proxies for the reduction in heat in the summer.
+
+* In its current condition, the clubhouse would use about 1 MWh for cooling.
+
+* Insulating the south wall and replacing the windows would cut that amount by 25%. Continuing with the energy upgrades, simply adding an awning that shades the south facing windows would cut cooling loads by 47%. With the aforementioned upgrades and properly insulating the attic and air sealing the ceiling would cut the cooling loads down by 69%.
+
+
+* Across the five models, **lighting** has the biggest impact on total energy usage, so if it hasn't been done already, converting every light to LED should be a top priority.
+
+
+## BEopt model results:
+
+```{r Main_Code, include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+library(tidyverse) # Needed for data wrangling: dplyr, tidyr, ggplot2
+library(cowplot)
+
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Import datasets
+
+dat <- read.csv("data/be_opt_output.csv")
+
+
+```
+
+
+```{r Data_Wrangling, echo = F, comment = ""}
+
+dat1 <- dat %>% 
+  pivot_longer(cols = c(current : opt4),
+               names_to = "options") %>% 
+  mutate(across(c(item : options), factor),
+         value = case_when(
+           item == "Misc." | item == "Lights" | item == "Stove_Fridge" ~
+             round(value * (7/12),3),
+           TRUE ~ value
+         ),
+         kWh = round(value, 4),
+         MWh = round(kWh / 1000, 2))
+
+```
+
+
+```{r be_opt_results, echo = F}
+
+dat1 %>%
+  filter(item != "Cooling Fan/Pump",
+         item != "Heating") %>% 
+  ggplot(aes(x = options, y = MWh, fill = item)) +
+  geom_col() +
+  geom_label(aes(x = options, y = ,
+                 label = MWh),
+             position = position_stack(vjust = 0.5),
+             show.legend = F, size = 3) +
+  scale_fill_manual(values = c("turquoise",
+                               "yellow3",
+                               "wheat2",
+                               "tan2"),
+                    labels = c("Cooling",
+                              "Lighting",
+                              "Misc. & outlets",
+                              "Appliances")) +
+  theme_minimal(base_size = 14) +
+  scale_x_discrete(labels = c("Current",
+                              "R15 walls &\nnew windows",
+                              "+ South awning",
+                              "+ R60 attic &\nceiling drywall",
+                              "+ 100% LED\nlights")) +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 0.8)) +
+  labs(x = NULL, fill = NULL)
+
+```
+
+
+```{r cooling_loads, echo = F}
+
+perc_cooling <- dat1 %>% 
+  group_by(options) %>% 
+  summarise(total = sum(MWh)) %>% 
+  left_join(., dat1, by = "options") %>% 
+  filter(item == "Cooling") %>% 
+  mutate(prop_mwh = MWh / total,
+         cost = kWh * 0.33) %>% 
+  filter(options != "opt4")
+
+percent_red <- c(1 - perc_cooling$prop_mwh[1] / perc_cooling$prop_mwh[1],
+                 1 - perc_cooling$prop_mwh[2] / perc_cooling$prop_mwh[1],
+                 1 - perc_cooling$prop_mwh[3] / perc_cooling$prop_mwh[1],
+                 1 - perc_cooling$prop_mwh[4] / perc_cooling$prop_mwh[1])
+
+
+perc_cooling$percent_red <- percent_red
+
+
+```
+
+## Cooling loads
+
+```{r cooling_figs, echo = F, fig.width=10, fig.height=6}
+
+A <- perc_cooling %>% 
+  ggplot(aes(x = options, y = kWh)) +
+  geom_col(fill = "turquoise") +
+  geom_label(aes(x = options, y = kWh,
+                 label = kWh),
+             color = "grey45") +
+  scale_x_discrete(labels = c("Current",
+                              "R15 walls &\nnew windows",
+                              "+ South awning",
+                              "+ R60 attic &\nceiling drywall")) +
+  labs(x = NULL) +
+  theme_minimal(base_size = 14) +
+  geom_label(aes(x = options, y = kWh,
+                 label = paste("$", cost, sep = "")),
+             vjust = 2) +
+  theme(axis.text.x = element_text(angle = 30,
+                                   hjust = 0.8))
+
+
+B <- perc_cooling %>% 
+  ggplot(aes(x = options, y = prop_mwh)) +
+  geom_col(fill = "coral2") +
+  geom_label(aes(x = options, y = prop_mwh,
+                 label = round(prop_mwh, 2)),
+             color = "grey45") +
+  scale_x_discrete(labels = c("Current",
+                              "R15 walls &\nnew windows",
+                              "+ South awning",
+                              "+ R60 attic &\nceiling drywall")) +
+  labs(x = NULL, y = "Proportion of electric bill") +
+  theme_minimal(base_size = 14) +
+  geom_label(aes(x = options, y = prop_mwh,
+                 label = paste(round(-percent_red * 100, 0),
+                               "%", sep = "")),
+             vjust = 2) +
+  theme(axis.text.x = element_text(angle = 30,
+                                   hjust = 0.8))
+
+
+
+plot_grid(A, B, nrow = 1)
+
+
+```
+
+
+## Session Information
+
+```{r Session_Info, echo = F, comment = ""}
+
+# Add session information to help with reproduceability
+sessionInfo()
+
+
+```
+
+

@@ -4,7 +4,7 @@ setwd("C:/Users/riley/Dropbox/rileyanderson123/NCYC")
 dat <- read.csv("be_opt_output.csv")
 
 library(tidyverse)
-library(viridis)
+
 
 
 dat1 <- dat %>% 
