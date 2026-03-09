@@ -1,0 +1,315 @@
+---
+title: "Heat Advisory Days since 1980"
+author: "Riley M. Anderson"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+graphics: yes
+output:
+  github_document:
+    toc: yes
+    toc_depth: 5
+    pandoc_args: --webtex
+  html_document:
+    keep_md: yes
+    theme: readable
+    mathjax: default
+  html_notebook:
+    code_folding: hide
+    theme: readable
+    mathjax: default
+  pdf_document:
+    toc: yes
+header-includes:
+  \usepackage{float}
+  \floatplacement{figure}{H}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include = F}
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Knitr Options
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Set root directory to the project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+
+# Set default knitr options: 
+# Suppress warnings and messages, cache chunks, 
+# Set default figure size to 6x8 at 300 dpi, and save a png and pdf
+knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
+    fig.height = 6, fig.width = 8, dpi = 300, # 6x8" @ 300dpi:1800x2400=4.3MP
+    dev = c('png', 'pdf'), dev.args = list(pdf = list(onefile = F)))
+
+```
+
+
+
+## Overview
+
+The analysis pulls daily weather data from DAYMET (ORNL & NASA) to provide estimates of gridded temperature and vapor pressure surfaces for the NCYC location since 1980. The objective is to show how many heat advisory days (NWS criteria) have occurred each year. Heat index was calculated with the Rothfusz regression 
+
+### Summary of Results
+* 
+
+```{r Main_Code, include = F, cache = F}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Setup - This code is run, but output is hidden
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Load Packages
+library(tidyverse) # Needed for data wrangling: dplyr, tidyr, ggplot2
+library(cowplot) # Needed for publication-quality ggplots
+library(daymetr)
+library(mgcv)
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@ Data Preparation
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+lat <- 41.289640
+
+lon <- -72.367728
+
+
+##############################
+# Functions
+heat_index_daymet <- function(tmax, vp){
+  Tm <- tmax * 9/5 + 32
+  es <- 610.8 * exp((17.27 * tmax) / (tmax + 237.3))
+  RH <- (vp / es) * 100
+    
+  HI <- -42.379 + 2.04901523 * Tm + 10.14333127 * RH - 
+      0.22475541 * Tm * RH - 0.00683783 * Tm^2 - 
+      0.05481717 * RH^2 + 0.00122874 * Tm^2 * RH +
+      0.00085282 * Tm * RH^2 - 0.00000199 * Tm^2 * RH^2
+    
+  HI[Tm < 80 | RH < 40] <- NA
+  HI
+
+}
+
+
+heat_index_fun <- function(Temp, RH){
+    HI <- -42.379 + 2.04901523 * Temp + 10.14333127 * RH - 
+      0.22475541 * Temp * RH - 0.00683783 * Temp^2 - 
+      0.05481717 * RH^2 + 0.00122874 * Temp^2 * RH +
+      0.00085282 * Temp * RH^2 - 0.00000199 * Temp^2 * RH^2
+    
+    HI
+}
+
+rel_hum_fun <- function(tmax, vp){
+  es <- 610.8 * exp((17.27 * tmax) / (tmax + 237.3))
+  RH <- (vp / es) * 100
+  RH
+}
+```
+
+
+```{r Data_Wrangling, echo = F, comment = ""}
+
+daymet_data <- download_daymet(
+  site = "Old_Saybrook_CT",
+  lat = lat,
+  lon = lon,
+  start = 1980,
+  end = as.numeric(format(Sys.Date(), "%Y")) - 1,
+  internal = TRUE,
+  simplify = TRUE
+)
+
+dat1 <- daymet_data %>% 
+  pivot_wider(names_from = measurement,
+              values_from = value) %>% 
+  mutate(date = as.Date(paste(year, yday, sep = "-"), "%Y-%j")) %>% 
+  arrange(date) %>% 
+  rename(dayl = dayl..s.,
+         prcp = prcp..mm.day.,
+         tmax = tmax..deg.c.,
+         tmin = tmin..deg.c.,
+         vp = vp..Pa.)
+
+dat1 <- dat1 %>% 
+  mutate(heat_index = heat_index_daymet(tmax, vp),
+         tmax_f = tmax * 9/5 + 32,
+         RH = rel_hum_fun(tmax, vp))
+
+
+
+```
+
+```{r days_above_90, echo = F}
+
+dat1 %>% 
+  mutate(year = lubridate::year(date)) %>% 
+  group_by(year) %>% 
+  summarise(HAD = sum(heat_index > 95, na.rm = TRUE)) %>% 
+  ggplot(aes(x = year, y = HAD)) +
+  geom_point(shape = 21) +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "tp"),
+              alpha = 0.2) +
+  theme_minimal(base_size = 14) +
+  labs(x = "Year", y = "Heat advisory days")
+
+```
+
+* **Heat advisory days** per year since 1980 at the NCYC clubhouse (41.289, -72.368). The national weather service defines heat advisory days when the heat index (feels-like temperature) reaches 95°F for 2 hours or more. Since the data source, DAYMET only provides Tmax on a daily basis (not hourly), the data shown may be slightly overestimated.
+
+
+```{r heat_index_figure, echo = F}
+
+top_10th_days <- dat1 %>% 
+  select(year, heat_index, tmax_f, RH) %>% 
+  filter(heat_index > quantile(heat_index, 0.9,
+                               na.rm = T))
+
+
+
+temps <- seq(80, 105, by = 0.5)
+RHs <- seq(20, 100, by = 1)
+
+
+temp_grid <- expand.grid(temp = temps,
+                         RH = RHs)
+
+temp_grid <- temp_grid %>% 
+  mutate(heat_index = heat_index_fun(temp, RH))
+
+temp_grid %>% 
+  ggplot(aes(x = temp, y = RH)) +
+  geom_contour_filled(aes(z = heat_index),
+                      breaks = c(-Inf, 95, Inf),
+                      alpha = 0.5) +
+  geom_contour(aes(z = heat_index),
+               breaks = 95,
+               color = "black",
+               linewidth = 1) +
+  labs(x = "Air temperature (°F)",
+       y = "Relative humidity (%)",
+       fill = "Heat-index zone") +
+  theme_minimal() +
+  geom_point(data = top_10th_days,
+             aes(x = tmax_f, y = RH, colour = year)) +
+  scale_color_viridis_c(option = "A", direction = -1) +
+  scale_fill_manual(values = c("grey95", "grey65"),
+                    labels = c("<95F", ">95F"))
+
+```
+
+* The top tenth percentile of warm days for each year since 1980, plotted over the Rothfusz regression that defines *Heat Advisory Days*. Points above the black line are days where a heat advisory would be issued.
+
+
+
+```{r density_HAD_fig, echo = F}
+
+
+temp_grid %>% 
+  ggplot(aes(x = temp, y = RH)) +
+  geom_contour(aes(z = heat_index),
+               breaks = 95,
+               linewidth = 1.2,
+               color = "black") +
+  stat_density_2d(data = filter(dat1,
+                                yday > 150 & yday < 250),
+                  aes(tmax_f, RH),
+                  color = "blue") +
+  labs(x = "Air temperature (°F)",
+       y = "Relative humidity (%)",
+       fill = "Heat-index zone") +
+  theme_minimal() +
+  geom_contour_filled(aes(z = heat_index),
+                      breaks = c(-Inf, 95, Inf),
+                      alpha = 0.5) +
+  scale_fill_manual(values = c("white", "orange"),
+                    labels = c("", "Heat Advisory\n>95F"))
+
+```
+
+* Density contours of the daily maximum temperature from June 1 to Sep 15. 
+
+
+```{r ellipse_had_fig, echo = F, eval = F}
+
+dat1 <- dat1 %>% 
+  mutate(decade = floor(year(date) / 10) * 10)
+
+
+dat1 %>% 
+  ggplot(aes(x = tmax_f, y = RH, color = factor(decade))) +
+  stat_ellipse(level = 0.9) +
+  geom_contour(data = temp_grid,
+               aes(x = temp, y = RH, z = heat_index),
+               breaks = 95,
+               inherit.aes = F,
+               color = "black") +
+  theme_minimal()
+
+
+```
+
+```{r GAM, echo = F}
+
+
+dat2 <- dat1 %>% 
+  mutate(year = lubridate::year(date)) %>% 
+  group_by(year) %>% 
+  summarise(HAD = sum(heat_index > 95, na.rm = TRUE))
+
+
+gam_fit1 <- gam(HAD ~ s(year, k = 10),
+                data = dat2,
+                family = poisson())
+
+summary(gam_fit1)
+# gam.check(gam_fit1)
+# plot(gam_fit1, shade = T)
+
+
+future_years <- data.frame(year = seq(max(dat2$year),
+                                      max(dat2$year) + 5))
+
+pred <- predict(gam_fit1,
+                newdata = future_years,
+                type = "link",
+                se.fit = TRUE)
+
+future_years <- future_years %>% 
+  mutate(fit = exp(pred$fit),
+         lwr = exp(pred$fit - 2 * pred$se.fit),
+         upr = exp(pred$fit + 2 * pred$se.fit))
+
+```
+
+```{r forecast_HADs, echo = F, eval = F}
+
+dat2 %>% 
+  ggplot(aes(x = year, y = HAD)) +
+  geom_point() +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "tp")) +
+  geom_line(data = future_years,
+            aes(x = year, y = fit),
+            color = "red") +
+  geom_ribbon(data = future_years,
+              aes(x = year, y = fit, ymin = lwr, ymax = upr),
+              alpha = 0.3, fill = "red") +
+  labs(y = "Heat advisory days",
+       y = "Year") +
+  theme_minimal()
+
+```
+
+## Session Information
+
+```{r Session_Info, echo = F, comment = ""}
+
+# Add session information to help with reproduceability
+sessionInfo()
+
+
+```
+
+
