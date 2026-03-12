@@ -1,70 +1,74 @@
-Heat Advisory Days since 1980
+Heat Advisory Days since 1980 at NCYC
 ================
 Riley M. Anderson
-March 09, 2026
+March 12, 2026
 
   
 
 - [Overview](#overview)
   - [Summary of Results](#summary-of-results)
+  - [Heat advisory days at NCYC since
+    1980](#heat-advisory-days-at-ncyc-since-1980)
+  - [How hot is it at the clubhouse?](#how-hot-is-it-at-the-clubhouse)
 - [Session Information](#session-information)
 
 ## Overview
 
-The analysis pulls daily weather data from DAYMET (ORNL & NASA) to
-provide estimates of gridded temperature and vapor pressure surfaces for
-the NCYC location since 1980. The objective is to show how many heat
-advisory days (NWS criteria) have occurred each year. Heat index was
-calculated with the Rothfusz regression
+The analysis pulls daily weather data from
+[DAYMET](https://daymet.ornl.gov/) (ORNL & NASA) to provide estimates of
+gridded temperature and vapor pressure surfaces for the **NCYC location
+since 1980**. The objective is to show how many heat advisory days (NWS
+criteria) have occurred each year. Heat index was calculated with the
+Rothfusz regression [(Rothfusz
+1990)](https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml).
+
+Throughout the summer, the **NCYC clubhouse regularly reaches
+temperatures above 90°F**. This not only makes for an uncomfortable and
+unwelcoming environment, but it poses a major health risk to those over
+60 years of age and young children [(Kenny et
+al. 2010)](https://www.cmaj.ca/content/182/10/1053). That is, precisely
+the population using the clubhouse at these times.
 
 ### Summary of Results
 
-- 
+- 38 of the last 45 years have had at least one day where a heat
+  advisory would be issued by the National Weather Service.
+
+- The number of heat advisory days/year since 1980 ranged from 0-10 with
+  mean 3.8
+
+- Over the last 45 years, between June 1 and September 15, feels-like
+  temperatures at the clubhouse were above 85°F 26% of the time. 11% of
+  this time was above 90°F and 171 heat advisories (\>95°F) were issued
+  (4%).
+
+- Serious efforts to cool the clubhouse should be considered.
+
+### Heat advisory days at NCYC since 1980
 
 ![](NCYC_temp_timeseries_files/figure-gfm/days_above_90-1.png)<!-- -->
 
 - **Heat advisory days** per year since 1980 at the NCYC clubhouse
   (41.289, -72.368). The national weather service defines heat advisory
-  days when the heat index (feels-like temperature) reaches 95°F for 2
-  hours or more. Since the data source, DAYMET only provides Tmax on a
-  daily basis (not hourly), the data shown may be slightly
-  overestimated.
+  days when the heat index (feels-like temperature) is at or above 95°F
+  for 2 hours or more. Since the data source, DAYMET only provides Tmax
+  on a daily basis (not hourly), the data shown may be slightly
+  overestimated. The best fit hindcast (blue line) was generated with a
+  generalized additive model with thin plate splines and should not be
+  construed as a predictive (forecast) model.
 
-![](NCYC_temp_timeseries_files/figure-gfm/heat_index_figure-1.png)<!-- -->
-
-- The top tenth percentile of warm days for each year since 1980,
-  plotted over the Rothfusz regression that defines *Heat Advisory
-  Days*. Points above the black line are days where a heat advisory
-  would be issued.
+### How hot is it at the clubhouse?
 
 ![](NCYC_temp_timeseries_files/figure-gfm/density_HAD_fig-1.png)<!-- -->
 
-- Density contours of the daily maximum temperature from June 1 to Sep
-  15.
-
-<!-- -->
-
-    ## 
-    ## Family: poisson 
-    ## Link function: log 
-    ## 
-    ## Formula:
-    ## HAD ~ s(year, k = 10)
-    ## 
-    ## Parametric coefficients:
-    ##             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)  1.30865    0.07817   16.74   <2e-16 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Approximate significance of smooth terms:
-    ##           edf Ref.df Chi.sq p-value   
-    ## s(year) 2.269  2.822  10.64 0.00956 **
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## R-sq.(adj) =  0.064   Deviance explained = 9.48%
-    ## UBRE = 1.8031  Scale est. = 1         n = 45
+- **Density contours of the daily maximum temperature from June 1 to Sep
+  15.** Blue contours show the density of the raw data with frequency
+  diminishing outwards. Black isoclines overlay the heat index where
+  yellow indicates feels-like temperatures between 85°F and 90°F, orange
+  is 90°F to 95°F, and pink is \>95°F. The national weather service
+  issues heat advisories when the heat index is 95°F or greater for 2
+  hours or more. The NCYC clubhouse regularly experiences feels-like
+  temperatures above 85°F
 
 ## Session Information
 

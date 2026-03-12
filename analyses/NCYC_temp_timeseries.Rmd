@@ -1,5 +1,5 @@
 ---
-title: "Heat Advisory Days since 1980"
+title: "Heat Advisory Days since 1980 at NCYC"
 author: "Riley M. Anderson"
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 graphics: yes
@@ -47,10 +47,20 @@ knitr::opts_chunk$set(warning = F, message = F, collapse = T, cache = T,
 
 ## Overview
 
-The analysis pulls daily weather data from DAYMET (ORNL & NASA) to provide estimates of gridded temperature and vapor pressure surfaces for the NCYC location since 1980. The objective is to show how many heat advisory days (NWS criteria) have occurred each year. Heat index was calculated with the Rothfusz regression 
+The analysis pulls daily weather data from [DAYMET](https://daymet.ornl.gov/) (ORNL & NASA) to provide estimates of gridded temperature and vapor pressure surfaces for the **NCYC location since 1980**. The objective is to show how many heat advisory days (NWS criteria) have occurred each year. Heat index was calculated with the Rothfusz regression [(Rothfusz 1990)](https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml).
+
+Throughout the summer, the **NCYC clubhouse regularly reaches temperatures above 90°F**. This not only makes for an uncomfortable and unwelcoming environment, but it poses a major health risk to those over 60 years of age and young children [(Kenny et al. 2010)](https://www.cmaj.ca/content/182/10/1053). That is, precisely the population using the clubhouse at these times.
+
+
 
 ### Summary of Results
-* 
+* 38 of the last 45 years have had at least one day where a heat advisory would be issued by the National Weather Service.
+
+* The number of heat advisory days/year since 1980 ranged from 0-10 with mean 3.8
+
+* Over the last 45 years, between June 1 and September 15, feels-like temperatures at the clubhouse were above 85°F `r round(1244/4815, 2)*100`% of the time. `r round(509/4815, 2) *100`% of this time was above 90°F and 171 heat advisories (>95°F) were issued (`r round(171/4815, 2)*100`%).
+
+* Serious efforts to cool the clubhouse should be considered.
 
 ```{r Main_Code, include = F, cache = F}
 
@@ -140,6 +150,8 @@ dat1 <- dat1 %>%
 
 ```
 
+
+### Heat advisory days at NCYC since 1980
 ```{r days_above_90, echo = F}
 
 dat1 %>% 
@@ -154,9 +166,10 @@ dat1 %>%
   theme_minimal(base_size = 14) +
   labs(x = "Year", y = "Heat advisory days")
 
+
 ```
 
-* **Heat advisory days** per year since 1980 at the NCYC clubhouse (41.289, -72.368). The national weather service defines heat advisory days when the heat index (feels-like temperature) reaches 95°F for 2 hours or more. Since the data source, DAYMET only provides Tmax on a daily basis (not hourly), the data shown may be slightly overestimated.
+* **Heat advisory days** per year since 1980 at the NCYC clubhouse (41.289, -72.368). The national weather service defines heat advisory days when the heat index (feels-like temperature) is at or above 95°F for 2 hours or more. Since the data source, DAYMET only provides Tmax on a daily basis (not hourly), the data shown may be slightly overestimated. The best fit hindcast (blue line) was generated with a generalized additive model with thin plate splines and should not be construed as a predictive (forecast) model.
 
 
 ```{r heat_index_figure, echo = F}
@@ -178,30 +191,29 @@ temp_grid <- expand.grid(temp = temps,
 temp_grid <- temp_grid %>% 
   mutate(heat_index = heat_index_fun(temp, RH))
 
-temp_grid %>% 
-  ggplot(aes(x = temp, y = RH)) +
-  geom_contour_filled(aes(z = heat_index),
-                      breaks = c(-Inf, 95, Inf),
-                      alpha = 0.5) +
-  geom_contour(aes(z = heat_index),
-               breaks = 95,
-               color = "black",
-               linewidth = 1) +
-  labs(x = "Air temperature (°F)",
-       y = "Relative humidity (%)",
-       fill = "Heat-index zone") +
-  theme_minimal() +
-  geom_point(data = top_10th_days,
-             aes(x = tmax_f, y = RH, colour = year)) +
-  scale_color_viridis_c(option = "A", direction = -1) +
-  scale_fill_manual(values = c("grey95", "grey65"),
-                    labels = c("<95F", ">95F"))
+# temp_grid %>% 
+#   ggplot(aes(x = temp, y = RH)) +
+#   geom_contour_filled(aes(z = heat_index),
+#                       breaks = c(-Inf, 95, Inf),
+#                       alpha = 0.5) +
+#   geom_contour(aes(z = heat_index),
+#                breaks = 95,
+#                color = "black",
+#                linewidth = 1) +
+#   labs(x = "Air temperature (°F)",
+#        y = "Relative humidity (%)",
+#        fill = "Heat-index zone") +
+#   theme_minimal() +
+#   geom_point(data = top_10th_days,
+#              aes(x = tmax_f, y = RH, colour = year)) +
+#   scale_color_viridis_c(option = "A", direction = -1) +
+#   scale_fill_manual(values = c("grey95", "grey65"),
+#                     labels = c("<95F", ">95F"))
 
 ```
 
-* The top tenth percentile of warm days for each year since 1980, plotted over the Rothfusz regression that defines *Heat Advisory Days*. Points above the black line are days where a heat advisory would be issued.
 
-
+### How hot is it at the clubhouse?
 
 ```{r density_HAD_fig, echo = F}
 
@@ -209,7 +221,7 @@ temp_grid %>%
 temp_grid %>% 
   ggplot(aes(x = temp, y = RH)) +
   geom_contour(aes(z = heat_index),
-               breaks = 95,
+               breaks = c(85, 90, 95),
                linewidth = 1.2,
                color = "black") +
   stat_density_2d(data = filter(dat1,
@@ -218,39 +230,29 @@ temp_grid %>%
                   color = "blue") +
   labs(x = "Air temperature (°F)",
        y = "Relative humidity (%)",
-       fill = "Heat-index zone") +
+       fill = "Feels-like temp") +
   theme_minimal() +
   geom_contour_filled(aes(z = heat_index),
                       breaks = c(-Inf, 95, Inf),
+                      alpha = 0.3) +
+  geom_contour_filled(aes(z = heat_index),
+                      breaks = c(90, 95),
+                      alpha = 0.5) + 
+  geom_contour_filled(aes(z = heat_index),
+                      breaks = c(85, 90),
                       alpha = 0.5) +
-  scale_fill_manual(values = c("white", "orange"),
-                    labels = c("", "Heat Advisory\n>95F"))
-
-```
-
-* Density contours of the daily maximum temperature from June 1 to Sep 15. 
-
-
-```{r ellipse_had_fig, echo = F, eval = F}
-
-dat1 <- dat1 %>% 
-  mutate(decade = floor(year(date) / 10) * 10)
-
-
-dat1 %>% 
-  ggplot(aes(x = tmax_f, y = RH, color = factor(decade))) +
-  stat_ellipse(level = 0.9) +
-  geom_contour(data = temp_grid,
-               aes(x = temp, y = RH, z = heat_index),
-               breaks = 95,
-               inherit.aes = F,
-               color = "black") +
-  theme_minimal()
+  scale_fill_manual(values = c("white", "firebrick1",
+                               "orange1", "yellow"),
+                    labels = c("", "Heat Advisory\n>95F", ">90F", ">85F"))
 
 
 ```
 
-```{r GAM, echo = F}
+* **Density contours of the daily maximum temperature from June 1 to Sep 15.** Blue contours show the density of the raw data with frequency diminishing outwards. Black isoclines overlay the heat index where yellow indicates feels-like temperatures between 85°F and 90°F, orange is 90°F to 95°F, and pink is >95°F. The national weather service issues heat advisories when the heat index is 95°F or greater for 2 hours or more. The NCYC clubhouse regularly experiences feels-like temperatures above 85°F
+
+
+
+```{r GAM, echo = F, eval = F}
 
 
 dat2 <- dat1 %>% 
@@ -299,6 +301,11 @@ dat2 %>%
   labs(y = "Heat advisory days",
        y = "Year") +
   theme_minimal()
+
+
+dat1 %>% 
+  filter(yday > 152 & yday < 260) %>% 
+  filter(heat_index > 95)
 
 ```
 
