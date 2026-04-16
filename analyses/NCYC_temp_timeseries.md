@@ -1,7 +1,7 @@
 Heat Advisory Days since 1980 at NCYC
 ================
 Riley M. Anderson
-March 12, 2026
+April 15, 2026
 
   
 

@@ -231,7 +231,7 @@ temp_grid %>%
   labs(x = "Air temperature (°F)",
        y = "Relative humidity (%)",
        fill = "Feels-like temp") +
-  theme_minimal() +
+  theme_minimal(base_size = 20) +
   geom_contour_filled(aes(z = heat_index),
                       breaks = c(-Inf, 95, Inf),
                       alpha = 0.3) +
